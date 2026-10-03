@@ -1,0 +1,12 @@
+{
+  "name": "ritzqwq",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "deploy": "pnpm -r deploy"
+  }
+}
