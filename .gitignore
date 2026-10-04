@@ -26,3 +26,14 @@ pnpm-debug.log*
 # editor
 .vscode/
 .idea/
+
+.tofu/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+
+# OpenTofu backend config (personal, keep out of git). *.example is committed.
+backend.hcl

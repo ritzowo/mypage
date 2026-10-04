@@ -7,6 +7,6 @@
 
 | Category | Technologies |
 | --- | --- |
-| Infrastructure | OpenTofu, Cloudflare Workers, Cloudflare R2 |
+| Infrastructure | OpenTofu, Cloudflare Workers, AWS S3 |
 | Frontend | Vite, React, Tailwind CSS |
 | Backend | Hono |
