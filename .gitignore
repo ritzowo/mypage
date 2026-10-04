@@ -37,3 +37,6 @@ crash.log
 
 # OpenTofu backend config (personal, keep out of git). *.example is committed.
 backend.hcl
+
+# One-off IAM policy used to bootstrap the state bucket user (not part of the app).
+iam-policy.json
