@@ -49,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: opentofu/setup-tofu@v1
+      - uses: opentofu/setup-opentofu@v2
 
       - name: Format check
         run: tofu fmt -check -recursive
