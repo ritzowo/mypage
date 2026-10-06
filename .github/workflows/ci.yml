@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+# 同じPRで新しいpushがあったら古い実行をキャンセル
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# このワークフローは public リポジトリでも安全なように、
+# secrets を一切使わない検証だけに限定している。
+# （フォークからの悪意ある PR に secrets を渡さないため）
+# secrets を要する `tofu plan` / `wrangler deploy` は deploy.yml(main)側で行う。
+
+jobs:
+  app:
+    name: Build & check app (web / api)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # web: 本番ビルド(型チェック + vite build)。secrets 不要。
+      - name: Build web
+        run: pnpm --filter web build
+
+      # api: 型チェックのみ。`wrangler deploy --dry-run` はアカウント解決で
+      # トークンを要することがあるため PR では走らせない(deploy.yml で担保)。
+      - name: Typecheck api
+        run: pnpm --filter api typecheck
+
+      - name: Lint web
+        run: pnpm --filter web lint
+
+  infra:
+    name: OpenTofu check (no backend, no secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-tofu@v1
+
+      - name: Format check
+        run: tofu fmt -check -recursive
+        working-directory: infra
+
+      # -backend=false: S3(state)に接続せず provider だけ取得。AWS 認証不要。
+      - name: Init (no backend)
+        run: tofu init -backend=false
+        working-directory: infra
+
+      - name: Validate
+        run: tofu validate
+        working-directory: infra
