@@ -1,11 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ritzu-api",
+  "account_id": "f38bac14d1a4e4bdec29d94e5d99f819",
   "main": "src/index.ts",
   "compatibility_date": "2025-10-01",
   "observability": {
     "enabled": true
   }
-  // Note: カスタムドメイン(api.ritzu.dev)の紐付けは OpenTofu(infra)側で管理する。
-  // ここには routes を書かない。wrangler はコードデプロイのみ担当。
 }
