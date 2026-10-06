@@ -1,9 +1,18 @@
 import { useEffect, useRef } from 'react'
 
 const CELL = 16
+const SUB = 4
 const FADE_MS = 600
 const GRAY = 255
-const GAP_MS = 150 // この時間以上 move が空いたら補間を切る(タブ復帰など)
+const GAP_MS = 150
+
+// 4x4 ベイヤー行列(0..15)。しきい値ディザで濃淡を網点パターンにする
+const BAYER = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+]
 
 function PixelCursorTrail() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -83,7 +92,9 @@ function PixelCursorTrail() {
     const render = () => {
       const now = performance.now()
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      const cellPx = Math.round(CELL * dpr)
+      ctx.fillStyle = `rgb(${GRAY}, ${GRAY}, ${GRAY})`
+
+      const subPx = Math.round(SUB * dpr)
 
       for (const [key, litAt] of lit) {
         const alpha = 1 - (now - litAt) / FADE_MS
@@ -91,11 +102,21 @@ function PixelCursorTrail() {
           lit.delete(key)
           continue
         }
+        // 濃さを 0..16 のレベルに。ベイヤー値(0..15)がレベル未満なら塗る
+        const level = Math.ceil(alpha * 16)
         const [col, row] = key.split(',').map(Number)
-        const x = Math.round(col * CELL * dpr)
-        const y = Math.round(row * CELL * dpr)
-        ctx.fillStyle = `rgba(${GRAY}, ${GRAY}, ${GRAY}, ${alpha})`
-        ctx.fillRect(x, y, cellPx, cellPx)
+        const cellX = col * CELL * dpr
+        const cellY = row * CELL * dpr
+
+        for (let by = 0; by < SUB; by++) {
+          for (let bx = 0; bx < SUB; bx++) {
+            if (BAYER[by][bx] < level) {
+              const x = Math.round(cellX + bx * SUB * dpr)
+              const y = Math.round(cellY + by * SUB * dpr)
+              ctx.fillRect(x, y, subPx, subPx)
+            }
+          }
+        }
       }
 
       raf = requestAnimationFrame(render)
