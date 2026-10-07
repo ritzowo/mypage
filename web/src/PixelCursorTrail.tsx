@@ -6,7 +6,6 @@ const FADE_MS = 600
 const GRAY = 255
 const GAP_MS = 150
 
-// 4x4 ベイヤー行列(0..15)。しきい値ディザで濃淡を網点パターンにする
 const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -38,9 +37,11 @@ function PixelCursorTrail() {
     }
     resize()
 
-    const lit = new Map<string, number>() // "col,row" -> 点灯時刻
+    const lit = new Map<string, number>()
+    const held = new Set<string>()
     let lastCell: { col: number; row: number } | null = null
     let lastMoveAt = 0
+    let pressing = false
 
     const onMove = (e: PointerEvent) => {
       if (!document.hasFocus()) return
@@ -54,10 +55,10 @@ function PixelCursorTrail() {
 
       if (
         lastCell &&
-        !gapTooLong &&
+        (pressing || !gapTooLong) &&
         (lastCell.col !== col || lastCell.row !== row)
       ) {
-        // Bresenham で前セルから現セルまでを辿る(斜めも角セルを出さない)
+
         let x0 = lastCell.col
         let y0 = lastCell.row
         const dx = Math.abs(col - x0)
@@ -77,15 +78,34 @@ function PixelCursorTrail() {
             y0 += sy
           }
           lit.set(`${x0},${y0}`, now)
+          if (pressing) held.add(`${x0},${y0}`)
         }
       } else {
         lit.set(`${col},${row}`, now)
       }
       lastCell = { col, row }
+      if (pressing) held.add(`${col},${row}`)
+    }
+
+    const onDown = (e: PointerEvent) => {
+      if (!document.hasFocus()) return
+      pressing = true
+      const col = Math.floor(e.clientX / CELL)
+      const row = Math.floor(e.clientY / CELL)
+      held.add(`${col},${row}`)
+      lastCell = { col, row }
+      lastMoveAt = performance.now()
+    }
+
+    const onUp = () => {
+      pressing = false
+      held.clear()
     }
 
     const onLeave = () => {
       lastCell = null
+      pressing = false
+      held.clear()
     }
 
     let raf = 0
@@ -96,18 +116,9 @@ function PixelCursorTrail() {
 
       const subPx = Math.round(SUB * dpr)
 
-      for (const [key, litAt] of lit) {
-        const alpha = 1 - (now - litAt) / FADE_MS
-        if (alpha <= 0) {
-          lit.delete(key)
-          continue
-        }
-        // 濃さを 0..16 のレベルに。ベイヤー値(0..15)がレベル未満なら塗る
-        const level = Math.ceil(alpha * 16)
-        const [col, row] = key.split(',').map(Number)
+      const paintCell = (col: number, row: number, level: number) => {
         const cellX = col * CELL * dpr
         const cellY = row * CELL * dpr
-
         for (let by = 0; by < SUB; by++) {
           for (let bx = 0; bx < SUB; bx++) {
             if (BAYER[by][bx] < level) {
@@ -119,11 +130,31 @@ function PixelCursorTrail() {
         }
       }
 
+      for (const [key, litAt] of lit) {
+        const alpha = 1 - (now - litAt) / FADE_MS
+        if (alpha <= 0) {
+          lit.delete(key)
+          continue
+        }
+
+        const level = Math.ceil(alpha * 16)
+        const [col, row] = key.split(',').map(Number)
+        paintCell(col, row, level)
+      }
+
+      for (const key of held) {
+        const [col, row] = key.split(',').map(Number)
+        paintCell(col, row, 16)
+      }
+
       raf = requestAnimationFrame(render)
     }
     raf = requestAnimationFrame(render)
 
     window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointerdown', onDown, { passive: true })
+    window.addEventListener('pointerup', onUp, { passive: true })
+    window.addEventListener('pointercancel', onUp, { passive: true })
     window.addEventListener('pointerleave', onLeave)
     window.addEventListener('blur', onLeave)
     document.addEventListener('visibilitychange', onLeave)
@@ -132,6 +163,9 @@ function PixelCursorTrail() {
     return () => {
       cancelAnimationFrame(raf)
       window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       window.removeEventListener('pointerleave', onLeave)
       window.removeEventListener('blur', onLeave)
       document.removeEventListener('visibilitychange', onLeave)
