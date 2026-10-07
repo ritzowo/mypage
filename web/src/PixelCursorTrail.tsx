@@ -99,6 +99,8 @@ function PixelCursorTrail() {
 
     const onUp = () => {
       pressing = false
+      const now = performance.now()
+      for (const key of held) lit.set(key, now)
       held.clear()
     }
 
